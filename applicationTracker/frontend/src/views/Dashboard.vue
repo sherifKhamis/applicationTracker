@@ -6,6 +6,33 @@
     </header>
 
     <main>
+      <section class="stats-section">
+        <div class="stat-cards">
+          <div class="stat-card brutal-card">
+            <h3>Total Applied</h3>
+            <div class="stat-value">{{ stats.total }}</div>
+          </div>
+          <div class="stat-card brutal-card">
+            <h3>Interview Rate</h3>
+            <div class="stat-value">{{ stats.interviewRate }}%</div>
+          </div>
+        </div>
+        <div class="heatmap-card brutal-card">
+          <h3>Activity Heatmap</h3>
+          <div class="heatmap-container">
+            <div class="heatmap-grid">
+              <div 
+                v-for="day in heatmapDays" 
+                :key="day.date" 
+                class="heatmap-cell"
+                :class="getHeatmapColor(day.count)"
+                :title="day.count >= 0 ? `${day.count} applications on ${day.date}` : ''"
+              ></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section class="form-section brutal-card">
         <h2>Add New Application</h2>
         <form @submit.prevent="submitApplication" class="app-form">
@@ -145,6 +172,62 @@ const searchQuery = ref('')
 const statusFilter = ref('')
 const showDeleteModal = ref(false)
 const appToDelete = ref(null)
+
+const stats = computed(() => {
+  const total = applications.value.length
+  if (total === 0) return { total: 0, interviewRate: 0 }
+  
+  const interviews = applications.value.filter(app => app.status === 'Interviewing' || app.status === 'Offer').length
+  return {
+    total,
+    interviewRate: Math.round((interviews / total) * 100)
+  }
+})
+
+const heatmapDays = computed(() => {
+  const days = []
+  const today = new Date()
+  today.setHours(0,0,0,0)
+  
+  const counts = {}
+  applications.value.forEach(app => {
+    if (!app.date_applied) return
+    const d = new Date(app.date_applied)
+    const dateStr = d.toISOString().split('T')[0]
+    counts[dateStr] = (counts[dateStr] || 0) + 1
+  })
+
+  // Start from 25 weeks ago (175 days)
+  const numDays = 175
+  const startDate = new Date(today)
+  startDate.setDate(today.getDate() - numDays + 1)
+  
+  // Pad the beginning so the first day aligns with Sunday (0)
+  const startDayOfWeek = startDate.getDay()
+  for (let i = 0; i < startDayOfWeek; i++) {
+    days.push({ date: `empty-${i}`, count: -1 })
+  }
+
+  for (let i = numDays - 1; i >= 0; i--) {
+    const d = new Date(today)
+    d.setDate(d.getDate() - i)
+    const dateStr = d.toISOString().split('T')[0]
+    days.push({
+      date: dateStr,
+      count: counts[dateStr] || 0
+    })
+  }
+  return days
+})
+
+const getHeatmapColor = (count) => {
+  if (count < 0) return 'heatmap-empty'
+  if (count === 0) return 'heatmap-level-0'
+  if (count === 1) return 'heatmap-level-1'
+  if (count === 2) return 'heatmap-level-2'
+  if (count === 3) return 'heatmap-level-3'
+  return 'heatmap-level-4'
+}
 
 const filteredApplications = computed(() => {
   return applications.value.filter(app => {
@@ -298,7 +381,106 @@ header h1 {
     font-size: 1.5rem;
   }
   .brutal-card {
-    padding: 1.5rem;
+    padding: 0.75rem;
+  }
+}
+
+.stats-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  margin-bottom: 2.5rem;
+}
+
+@media (min-width: 850px) {
+  .stats-section {
+    flex-direction: row;
+  }
+}
+
+.stat-cards {
+  display: flex;
+  flex: 1;
+  min-width: 250px;
+  gap: 1.5rem;
+}
+
+.stat-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 0;
+  padding: 1.5rem;
+}
+
+.stat-card h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.9rem;
+  color: var(--text-main);
+  text-transform: uppercase;
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.stat-value {
+  font-size: 2.5rem;
+  font-weight: 800;
+  color: var(--primary-color);
+  text-shadow: 2px 2px 0px var(--secondary-color);
+}
+
+.heatmap-card {
+  flex: 1;
+  min-width: 300px;
+  margin-bottom: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.heatmap-card h3 {
+  margin: 0 0 1rem 0;
+  font-size: 1rem;
+  text-transform: uppercase;
+  border-bottom: 3px solid var(--text-main);
+  padding-bottom: 0.5rem;
+}
+
+.heatmap-container {
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+}
+
+.heatmap-grid {
+  display: grid;
+  grid-template-rows: repeat(7, 1fr);
+  grid-auto-flow: column;
+  gap: 4px;
+  width: max-content;
+}
+
+.heatmap-cell {
+  width: 14px;
+  height: 14px;
+  border-radius: 2px;
+  border: 2px solid var(--text-main);
+}
+
+.heatmap-empty {
+  border: none;
+  background: transparent;
+}
+
+.heatmap-level-0 { background-color: #f1f5f9; }
+.heatmap-level-1 { background-color: #bbf7d0; } 
+.heatmap-level-2 { background-color: #4ade80; } 
+.heatmap-level-3 { background-color: #16a34a; } 
+.heatmap-level-4 { background-color: #14532d; } 
+
+@media (max-width: 600px) {
+  .stat-cards {
+    flex-direction: column;
   }
 }
 
