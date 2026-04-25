@@ -297,7 +297,7 @@ const handleCoverLetterUpload = (event) => {
 }
 
 const getMediaUrl = (path) => {
-  return `http://127.0.0.1:5000/uploads/${path}`
+  return `/uploads/${path}`
 }
 
 const fetchApplications = async () => {

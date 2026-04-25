@@ -4,11 +4,19 @@ from flask_cors import CORS
 from config import Config
 from extensions import db
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='../frontend/dist', static_url_path='/')
 app.config.from_object(Config)
 
-# Configure upload folder
-UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
+# Configure upload folder to use Render Disk if available
+RENDER_DISK_PATH = '/var/data'
+if os.path.exists(RENDER_DISK_PATH):
+    UPLOAD_FOLDER = os.path.join(RENDER_DISK_PATH, 'uploads')
+else:
+    UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
+
+os.makedirs(os.path.join(UPLOAD_FOLDER, 'screenshots'), exist_ok=True)
+os.makedirs(os.path.join(UPLOAD_FOLDER, 'cover_letters'), exist_ok=True)
+
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 # Enable CORS to allow requests from the Vue.js frontend
@@ -38,6 +46,15 @@ def health_check():
 @app.route('/uploads/<path:filename>')
 def serve_uploads(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
+# Catch-all route to serve the Vue frontend
+@app.route('/', defaults={'path': ''})
+@app.route('/<path:path>')
+def serve_frontend(path):
+    if path != "" and os.path.exists(os.path.join(app.static_folder, path)):
+        return send_from_directory(app.static_folder, path)
+    else:
+        return send_from_directory(app.static_folder, 'index.html')
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
