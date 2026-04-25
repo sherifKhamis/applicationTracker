@@ -6,6 +6,12 @@
     </header>
 
     <main>
+      <!-- Custom Toast Notifications -->
+      <div v-if="toastMessage" :class="['toast-notification', toastType]">
+        {{ toastMessage }}
+        <button @click="closeToast" class="toast-close">&times;</button>
+      </div>
+
       <section class="stats-section">
         <div class="stat-cards">
           <div class="stat-card brutal-card">
@@ -35,14 +41,16 @@
 
       <section class="form-section brutal-card">
         <h2>Add New Application</h2>
-        <form @submit.prevent="submitApplication" class="app-form">
+        <form @submit.prevent="submitApplication" class="app-form" novalidate>
           <div class="form-group">
-            <label>Company</label>
-            <input v-model="newApp.company" required placeholder="e.g. Google" class="brutal-input" />
+            <label>Company *</label>
+            <input v-model="newApp.company" placeholder="e.g. Google" class="brutal-input" :class="{'input-error': validationErrors.company}" />
+            <span class="error-msg" v-if="validationErrors.company">{{ validationErrors.company }}</span>
           </div>
           <div class="form-group">
-            <label>Position</label>
-            <input v-model="newApp.position" required placeholder="e.g. Software Engineer" class="brutal-input" />
+            <label>Position *</label>
+            <input v-model="newApp.position" placeholder="e.g. Software Engineer" class="brutal-input" :class="{'input-error': validationErrors.position}" />
+            <span class="error-msg" v-if="validationErrors.position">{{ validationErrors.position }}</span>
           </div>
           <div class="form-group">
             <label>Status</label>
@@ -55,7 +63,8 @@
           </div>
           <div class="form-group">
             <label>Link (URL)</label>
-            <input v-model="newApp.url" placeholder="https://..." class="brutal-input" type="url" />
+            <input v-model="newApp.url" placeholder="https://..." class="brutal-input" :class="{'input-error': validationErrors.url}" type="url" />
+            <span class="error-msg" v-if="validationErrors.url">{{ validationErrors.url }}</span>
           </div>
           <div class="form-group">
             <label>Screenshot</label>
@@ -173,6 +182,24 @@ const statusFilter = ref('')
 const showDeleteModal = ref(false)
 const appToDelete = ref(null)
 
+const toastMessage = ref('')
+const toastType = ref('error') // 'error' or 'success'
+let toastTimeout = null
+
+const showToast = (message, type = 'error') => {
+  toastMessage.value = message
+  toastType.value = type
+  
+  if (toastTimeout) clearTimeout(toastTimeout)
+  toastTimeout = setTimeout(() => {
+    closeToast()
+  }, 5000)
+}
+
+const closeToast = () => {
+  toastMessage.value = ''
+}
+
 const stats = computed(() => {
   const total = applications.value.length
   if (total === 0) return { total: 0, interviewRate: 0 }
@@ -244,6 +271,11 @@ const newApp = ref({
   status: 'Applied',
   url: ''
 })
+const validationErrors = ref({
+  company: '',
+  position: '',
+  url: ''
+})
 const selectedFile = ref(null)
 const selectedCoverLetter = ref(null)
 
@@ -274,10 +306,35 @@ const fetchApplications = async () => {
     applications.value = await res.json()
   } catch (error) {
     console.error("Error fetching applications:", error)
+    showToast("Failed to load applications.", "error")
   }
 }
 
 const submitApplication = async (event) => {
+  // Clear previous errors
+  validationErrors.value = { company: '', position: '', url: '' }
+  let hasErrors = false
+
+  // Custom form validation
+  if (!newApp.value.company || !newApp.value.company.trim()) {
+    validationErrors.value.company = "Bitte fülle dieses Feld aus."
+    hasErrors = true
+  }
+  if (!newApp.value.position || !newApp.value.position.trim()) {
+    validationErrors.value.position = "Bitte fülle dieses Feld aus."
+    hasErrors = true
+  }
+  
+  if (newApp.value.url && !newApp.value.url.startsWith('http')) {
+    validationErrors.value.url = "Bitte gib eine gültige URL ein (http/https)."
+    hasErrors = true
+  }
+
+  if (hasErrors) {
+    showToast("Please fix the errors in the form.", "error")
+    return
+  }
+
   try {
     const formData = new FormData()
     formData.append('company', newApp.value.company)
@@ -300,9 +357,15 @@ const submitApplication = async (event) => {
       selectedFile.value = null
       selectedCoverLetter.value = null
       event.target.reset() // reset file input
+      
+      showToast("Application added successfully!", "success")
+    } else {
+      const data = await res.json()
+      showToast(data.error || "Failed to save application.", "error")
     }
   } catch (error) {
     console.error("Error adding application:", error)
+    showToast("Server connection failed.", "error")
   }
 }
 
@@ -325,9 +388,13 @@ const confirmDeleteApplication = async () => {
     if (res.ok) {
       applications.value = applications.value.filter(app => app.id !== id)
       closeDeleteModal()
+      showToast("Application deleted.", "success")
+    } else {
+      showToast("Failed to delete application.", "error")
     }
   } catch (error) {
     console.error("Error deleting application:", error)
+    showToast("Server connection failed.", "error")
   }
 }
 
@@ -573,6 +640,32 @@ h2 {
   border-color: var(--primary-color);
   box-shadow: 4px 4px 0px var(--secondary-color);
   transform: translate(-2px, -2px);
+}
+
+.brutal-input.input-error {
+  border-color: #ef4444; /* red */
+  background-color: #fef2f2;
+}
+
+.brutal-input.input-error:focus {
+  box-shadow: 4px 4px 0px #ef4444;
+}
+
+.error-msg {
+  display: block;
+  color: #ef4444;
+  font-size: 0.8rem;
+  font-weight: 800;
+  margin-top: 0.4rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  animation: shake 0.3s ease-in-out;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
 }
 
 .form-group-btn {
@@ -995,4 +1088,57 @@ h2 {
 .modal-actions .brutal-btn {
   flex: 1;
 }
+
+/* Toast Notification Styles */
+.toast-notification {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1100;
+  padding: 1rem 3rem 1rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border: 3px solid var(--text-main);
+  box-shadow: 6px 6px 0px var(--text-main);
+  animation: slide-down 0.3s ease-out forwards;
+  max-width: 90%;
+  text-align: center;
+}
+
+.toast-notification.error {
+  background-color: #fee2e2;
+  color: #b91c1c;
+}
+
+.toast-notification.success {
+  background-color: #dcfce3;
+  color: #166534;
+}
+
+.toast-close {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  font-size: 1.5rem;
+  font-weight: bold;
+  cursor: pointer;
+  color: inherit;
+  opacity: 0.7;
+}
+
+.toast-close:hover {
+  opacity: 1;
+}
+
+@keyframes slide-down {
+  0% { top: -100px; opacity: 0; }
+  100% { top: 20px; opacity: 1; }
+}
+
 </style>
