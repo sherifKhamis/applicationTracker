@@ -39,7 +39,7 @@ Um das Projekt lokal auf deinem Rechner auszuführen, folge diesen Schritten:
 
 ### 1. Repository klonen
 ```bash
-git clone <dein-repo-url>
+git clone git@github.com:sherifKhamis/applicationTracker.git
 cd applicationTracker
 ```
 
