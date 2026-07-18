@@ -84,3 +84,5 @@ Dieses Projekt ist für das Deployment auf [Render](https://render.com) vorkonfi
 
 ## 📄 Lizenz
 Dieses Projekt ist Open Source und zur freien Verwendung verfügbar.
+
+Redeploy trigger Sat Jul 18 18:28:21 UTC 2026
