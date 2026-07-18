@@ -4,9 +4,9 @@
       "type": "web",
       "name": "application-tracker",
       "env": "python",
-      "rootDir": "applicationTracker",
-      "buildCommand": "applicationTracker/build.sh",
-      "startCommand": "cd applicationTracker/backend && gunicorn app:app",
+      "rootDir": ".",
+      "buildCommand": "./build.sh",
+      "startCommand": "cd backend && gunicorn app:app",
       "envVars": [
         {
           "key": "PYTHON_VERSION",
