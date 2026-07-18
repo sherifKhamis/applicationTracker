@@ -138,7 +138,19 @@
                   </div>
                 </td>
                 <td data-label="Actions">
-                  <button @click="deleteApplication(app.id)" class="brutal-btn danger-btn small-btn">Delete</button>
+                  <div class="action-stack">
+                    <select
+                      class="brutal-input status-select"
+                      :value="app.status"
+                      @change="updateApplicationStatus(app, $event.target.value)"
+                    >
+                      <option value="Applied">Applied</option>
+                      <option value="Interviewing">Interviewing</option>
+                      <option value="Offer">Offer</option>
+                      <option value="Rejected">Rejected</option>
+                    </select>
+                    <button @click="deleteApplication(app.id)" class="brutal-btn danger-btn small-btn">Delete</button>
+                  </div>
                 </td>
               </tr>
               <tr v-if="expandedRow === app.id" class="expanded-row">
@@ -394,6 +406,37 @@ const confirmDeleteApplication = async () => {
     }
   } catch (error) {
     console.error("Error deleting application:", error)
+    showToast("Server connection failed.", "error")
+  }
+}
+
+const updateApplicationStatus = async (app, nextStatus) => {
+  if (app.status === nextStatus) return
+
+  const previousStatus = app.status
+  app.status = nextStatus
+
+  try {
+    const res = await fetch(`/api/applications/${app.id}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ status: nextStatus })
+    })
+
+    if (res.ok) {
+      const updatedApp = await res.json()
+      Object.assign(app, updatedApp)
+      showToast("Status updated.", "success")
+    } else {
+      app.status = previousStatus
+      const data = await res.json().catch(() => ({}))
+      showToast(data.error || "Failed to update status.", "error")
+    }
+  } catch (error) {
+    app.status = previousStatus
+    console.error("Error updating application status:", error)
     showToast("Server connection failed.", "error")
   }
 }
@@ -737,6 +780,21 @@ h2 {
 
 .small-btn:active {
   box-shadow: 1px 1px 0px var(--text-main);
+}
+
+.action-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: flex-start;
+}
+
+.status-select {
+  min-width: 110px;
+  width: 110px;
+  padding: 0.3rem 0.45rem;
+  font-size: 0.78rem;
+  line-height: 1.1;
 }
 
 .empty-state {
